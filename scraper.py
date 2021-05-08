@@ -145,7 +145,6 @@ class CsvFileExporter(FileExporter):
     def exportTo(self, data, location):
         with open(location, 'w', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=data[0].keys())
-
             writer.writeheader()
             writer.writerows(data)
 
@@ -161,13 +160,10 @@ class Scraper:
                  molecule_request: Request, molecule_detail_request: Request,
                  molecules_parser: Parser, molecule_detail_parser: Parser,
                  exporter: FileExporter):
-
         self.molecule_req = molecule_request
         self.molecule_detail_req = molecule_detail_request
-
         self.molecules_parser = molecules_parser
         self.molecule_detail_parser = molecule_detail_parser
-
         self.exporter = exporter
 
     async def scrape(self):
