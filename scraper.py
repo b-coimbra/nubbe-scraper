@@ -78,10 +78,11 @@ class MoleculeDetailRequest(Request):
 
 
 class Parser:
+    doc = None
+
     @abstractmethod
     def parse(self, data) -> dict:
         raise NotImplementedError('No parser was implemented.')
-
 
 class MoleculesXmlParser(Parser):
     def parse(self, xml) -> dict:
@@ -97,7 +98,8 @@ class MoleculeDetailXmlParser(Parser):
     def parse(self, xml) -> dict:
         """ Retrieves the info of a particular molecule """
 
-        xmldoc = BeautifulSoup(xml, 'lxml')
+        self.doc = BeautifulSoup(xml, 'lxml')
+
         details  = {}
         mappings = {
             'NuBBE'              : 'cod',
@@ -116,23 +118,89 @@ class MoleculeDetailXmlParser(Parser):
             'H-bond donors'      : 'nohnh',
             'Rotatable Bonds'    : 'nrotb',
             'Molecular Volume'   : 'mol_vol',
-            'References'         : 'compilado'
+            'References'         : 'compilado',
+            'Location'           : 'cidade'
         }
-        origin_mappings = ['familia', 'genero', 'especie']
 
         for key in mappings:
-            details[key] = self.__get_tag_value(xmldoc, mappings[key])
+            details[key] = self.__find(mappings[key])
 
-        details['Species'] = ' '.join(self.__get_tag_value(xmldoc, origin) for origin in origin_mappings)
+        details['Species'] = self.__get_species()
+        details['Biological Properties'] = self.__get_bio_properties()
 
         return details
 
-    def __get_tag_value(self, doc, tag_name):
-        elems = doc.find_all(tag_name)
+    def __get_bio_properties(self) -> str:
+        ids = self.__find_all('which')
+        mappings = {
+            '28': 'Activation of Glucoamylase',
+            '55': 'Anesthetic',
+            '18': 'Anthelmintic',
+            '48': 'Antiallergenic',
+            '22': 'Antiangiogenic',
+            '13': 'Antibacterial',
+            '1':  'Anticancer',
+            '36': 'Antichagasic',
+            '2':  'Antifungal',
+            '15': 'Anti-inflamatory',
+            '20': 'Antileishmanial',
+            '11': 'Antimalarial',
+            '14': 'Antinociceptive',
+            '5':  'Antioxidant',
+            '7':  'Antitrypanosomal',
+            '54': 'Anti-ulcerogenic',
+            '6':  'Antiviral',
+            '23': 'Anxiolytic',
+            '35': 'Cell growth inhbition',
+            '9':  'Cytotoxic',
+            '61': 'Genotoxic',
+            '56': 'Induction of ROS production',
+            '3':  'Inhibition of Acetylcholinesterase',
+            '30': 'Inhibition of ATP synthesis',
+            '31': 'Inhibition of basal electron transport',
+            '47': 'Inhibition of Cathepsin B',
+            '46': 'Inhibition of Cathepsin L',
+            '40': 'Inhibition of Cathepsin V',
+            '59': 'Inhibition of Cyclin-dependant Kinase (CDK)',
+            '29': 'Inhibition of Glyceraldehyde-3- phosphate',
+            '19': 'Inhibition of Glycosidase',
+            '4':  'Inhibition of Heme polymerisation',
+            '26': 'Inhibition of Myeloperoxidase',
+            '25': 'Inhibition of NADPH Oxidase',
+            '21': 'Inhibition of NF KB activation',
+            '32': 'Inhibition of phosphorylating electron transport',
+            '12': 'Inhibition of Protease',
+            '24': 'Inhibition of ROS Production by Neutrophils',
+            '58': 'Inhibition of Topoisomerase',
+            '57': 'Inhibition of Tubulin polymerization',
+            '33': 'Inhibition of uncoupled electron transport',
+            '49': 'Insect antennae response',
+            '8':  'Insecticidal',
+            '50': 'Molluscicidal',
+            '60': 'Mutagenic',
+            '17': 'Nematostatic'
+        }
 
-        if len(elems) == 0: return ''
+        return ', '.join(mappings[i] for i in ids)
 
-        return elems[0].text
+    def __get_species(self) -> str:
+        mappings = ['familia', 'genero', 'especie']
+
+        return ' '.join(self.__find(origin) for origin in mappings)
+
+    def __find(self, tag) -> str:
+        tags = self.__find_all(tag)
+
+        if not tags: return ''
+
+        return tags[0]
+
+    def __find_all(self, tag) -> List[str]:
+        tags = self.doc.find_all(tag)
+
+        if len(tags) == 0: return ''
+
+        return list(map(lambda x: x.text, tags))
 
 
 class FileExporter:
@@ -168,7 +236,8 @@ class Scraper:
 
     async def scrape(self):
         ids = self.extract_molecule_ids()
-        details = [self.extract_molecule_detail(mol_id, idx, len(ids)) for idx, mol_id in enumerate(ids)]
+        details = [self.extract_molecule_detail(mol_id, idx, len(ids))
+                   for idx, mol_id in enumerate(ids)]
 
         self.exporter.exportTo(details, Config.OUTPUT_PATH)
 
