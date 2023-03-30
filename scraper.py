@@ -118,15 +118,22 @@ class MoleculeDetailXmlParser(Parser):
             'H-bond donors'      : 'nohnh',
             'Rotatable Bonds'    : 'nrotb',
             'Molecular Volume'   : 'mol_vol',
-            'References'         : 'compilado',
             'Location'           : 'cidade'
+        }
+
+        multiple_mappings = {
+            'References' : 'compilado',
+            'Species'    : 'origem'
         }
 
         for key in mappings:
             details[key] = self.__find(mappings[key])
 
-        details['Species'] = self.__get_species()
+        for key in multiple_mappings:
+            details[key] = ', '.join(self.__find_all(multiple_mappings[key]))
+
         details['Biological Properties'] = self.__get_bio_properties()
+        details['Source(s)'] = self.__get_sources()
 
         return details
 
@@ -183,10 +190,17 @@ class MoleculeDetailXmlParser(Parser):
 
         return ', '.join(mappings[i] for i in ids)
 
-    def __get_species(self) -> str:
-        mappings = ['familia', 'genero', 'especie']
+    def __get_sources(self) -> str:
+        mappings = {
+            '2': 'Semisynthesis',
+            '3': 'Biotransformation product',
+            '4': 'Isolated from a plant',
+            '5': 'Isolated from a microorganism',
+            '6': 'Isolated from a marine organism',
+            '7': 'Isolated from animalia'
+        }
 
-        return ' '.join(self.__find(origin) for origin in mappings)
+        return mappings[self.__find('tipo')]
 
     def __find(self, tag) -> str:
         tags = self.__find_all(tag)
@@ -200,7 +214,7 @@ class MoleculeDetailXmlParser(Parser):
 
         if len(tags) == 0: return ''
 
-        return list(map(lambda x: x.text, tags))
+        return list(map(lambda x: x.text.strip().replace('\n', ' '), tags))
 
 
 class FileExporter:
